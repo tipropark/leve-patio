@@ -1,0 +1,97 @@
+name: Build APK — Leve Pátio
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    name: Flutter Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # ── Informações de versão ──────────────────────────────────────────────
+      - name: Extrair versão
+        id: ver
+        run: |
+          APP_VERSION=$(grep '^version:' pubspec.yaml \
+            | sed 's/version: *//' | cut -d'+' -f1 | tr -d '[:space:]')
+          BUILD_NUMBER=$(git rev-list --count HEAD)
+          GIT_SHA=$(git rev-parse --short HEAD)
+          echo "app_version=$APP_VERSION"   >> "$GITHUB_OUTPUT"
+          echo "build_number=$BUILD_NUMBER" >> "$GITHUB_OUTPUT"
+          echo "git_sha=$GIT_SHA"           >> "$GITHUB_OUTPUT"
+          echo "📦 Versão: $APP_VERSION+$BUILD_NUMBER ($GIT_SHA)"
+
+      # ── Java (Gradle precisa de JDK 17) ───────────────────────────────────
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      # ── Flutter ───────────────────────────────────────────────────────────
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.1'
+          channel: stable
+          cache: true
+
+      - name: Instalar dependências
+        run: flutter pub get
+
+      # ── Testes (motor de tarifa obrigatório no CI) ────────────────────────
+      - name: Testes unitários
+        run: flutter test
+
+      # ── Build ─────────────────────────────────────────────────────────────
+      - name: Build APK release
+        run: |
+          flutter build apk --release \
+            --build-name="${{ steps.ver.outputs.app_version }}" \
+            --build-number="${{ steps.ver.outputs.build_number }}" \
+            --dart-define=API_BASE_URL=https://dashboard.levemobilidade.com.br \
+            --dart-define=APP_ID=patio \
+            --dart-define=APP_VERSION=${{ steps.ver.outputs.app_version }} \
+            --dart-define=BUILD_NUMBER=${{ steps.ver.outputs.build_number }} \
+            --dart-define=GIT_SHA=${{ steps.ver.outputs.git_sha }}
+
+      # ── Renomear APK com versão ────────────────────────────────────────────
+      - name: Renomear APK
+        run: |
+          VERSION="${{ steps.ver.outputs.app_version }}"
+          BUILD="${{ steps.ver.outputs.build_number }}"
+          SHA="${{ steps.ver.outputs.git_sha }}"
+          mv build/app/outputs/flutter-apk/app-release.apk \
+             "build/app/outputs/flutter-apk/leve-patio-v${VERSION}+${BUILD}-${SHA}.apk"
+
+      # ── Upload artefato ───────────────────────────────────────────────────
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: leve-patio-v${{ steps.ver.outputs.app_version }}+${{ steps.ver.outputs.build_number }}
+          path: build/app/outputs/flutter-apk/*.apk
+          retention-days: 30
+
+      # ── Release automática ao criar tag v* ────────────────────────────────
+      - name: Criar GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/app/outputs/flutter-apk/*.apk
+          generate_release_notes: true
+          name: "Leve Pátio ${{ steps.ver.outputs.app_version }}"
+          body: |
+            **Build:** ${{ steps.ver.outputs.build_number }}
+            **Commit:** ${{ steps.ver.outputs.git_sha }}
+
+            Para instalar, baixe o arquivo `.apk` e habilite "Fontes desconhecidas" no Android.
