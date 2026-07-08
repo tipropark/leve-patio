@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Leve Pátio — O pátio não para. Nem sem internet.</title>
+<meta name="description" content="App offline-first para operação de estacionamento: entrada e saída com OCR de placa, caixa completo, impressão térmica Bluetooth e sincronização automática com o Leve ERP.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Archivo+Black&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#011230;
+    --bg-deep:#000D27;
+    --surface:#0E1F3D;
+    --surface-hi:#192A48;
+    --line:rgba(216,226,255,.12);
+    --text:#D8E2FF;
+    --text-dim:#8FA0C7;
+    --red:#E30613;
+    --red-dark:#B00510;
+    --green:#4ADE80;
+    --amber:#FB923C;
+    --paper:#FDF9F0;
+    --paper-ink:#2A2620;
+    --radius:16px;
+    --font-display:'Archivo Black',sans-serif;
+    --font-body:'Archivo',sans-serif;
+    --font-mono:'JetBrains Mono',monospace;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  @media (prefers-reduced-motion:reduce){
+    html{scroll-behavior:auto}
+    *,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}
+  }
+  body{
+    font-family:var(--font-body);
+    background:var(--bg);
+    color:var(--text);
+    line-height:1.6;
+    overflow-x:hidden;
+  }
+  ::selection{background:var(--red);color:#fff}
+  a{color:inherit}
+  img,svg{display:block;max-width:100%}
+  .container{max-width:1140px;margin:0 auto;padding:0 24px}
+
+  /* ===== textura asfalto ===== */
+  body::before{
+    content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+    background-image:radial-gradient(rgba(216,226,255,.05) 1px,transparent 1px);
+    background-size:26px 26px;
+  }
+  main,header,footer{position:relative;z-index:1}
+
+  /* ===== faixa de sinalização ===== */
+  .hazard{
+    height:8px;
+    background:repeating-linear-gradient(-45deg,var(--red) 0 18px,var(--bg-deep) 18px 36px);
+  }
+
+  /* ===== nav ===== */
+  .nav{
+    position:sticky;top:0;z-index:50;
+    background:rgba(1,18,48,.85);
+    backdrop-filter:blur(14px);
+    -webkit-backdrop-filter:blur(14px);
+    border-bottom:1px solid var(--line);
+  }
+  .nav-inner{display:flex;align-items:center;justify-content:space-between;height:68px}
+  .brand{display:flex;align-items:center;gap:10px;text-decoration:none;font-family:var(--font-display);font-size:1.15rem;letter-spacing:.02em}
+  .brand-mark{width:34px;height:34px;background:var(--red);border-radius:8px;display:grid;place-items:center;font-family:var(--font-display);color:#fff;font-size:1.05rem}
+  .nav-links{display:flex;gap:28px;list-style:none}
+  .nav-links a{text-decoration:none;font-weight:600;font-size:.92rem;color:var(--text-dim);transition:color .2s}
+  .nav-links a:hover,.nav-links a:focus-visible{color:var(--text)}
+  .btn{
+    display:inline-flex;align-items:center;gap:9px;
+    min-height:48px;padding:12px 26px;border-radius:12px;
+    font-family:var(--font-body);font-weight:700;font-size:.95rem;letter-spacing:.01em;
+    text-decoration:none;cursor:pointer;border:none;
+    transition:background .2s,box-shadow .2s,border-color .2s;
+  }
+  .btn-red{background:var(--red);color:#fff;box-shadow:0 6px 24px rgba(227,6,19,.35)}
+  .btn-red:hover,.btn-red:focus-visible{background:var(--red-dark)}
+  .btn-ghost{background:transparent;color:var(--text);border:1px solid var(--line)}
+  .btn-ghost:hover,.btn-ghost:focus-visible{border-color:var(--text-dim);background:rgba(216,226,255,.05)}
+  a:focus-visible,button:focus-visible{outline:2px solid var(--green);outline-offset:3px}
+  @media(max-width:820px){.nav-links{display:none}}
+
+  /* ===== hero ===== */
+  .hero{padding:84px 0 40px;position:relative}
+  .hero-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:48px;align-items:center}
+  @media(max-width:940px){.hero-grid{grid-template-columns:1fr;gap:56px}}
+  .tag{
+    display:inline-flex;align-items:center;gap:8px;
+    font-family:var(--font-mono);font-size:.78rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--green);border:1px solid rgba(74,222,128,.35);border-radius:999px;padding:7px 14px;
+    background:rgba(74,222,128,.07);margin-bottom:26px;
+  }
+  .tag .dot{width:8px;height:8px;border-radius:50%;background:var(--green);animation:pulse 2s infinite}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(74,222,128,.5)}50%{box-shadow:0 0 0 7px rgba(74,222,128,0)}}
+  h1{
+    font-family:var(--font-display);
+    font-size:clamp(2.4rem,5.2vw,4rem);
+    line-height:1.06;letter-spacing:-.01em;text-transform:uppercase;
+  }
+  h1 .stroke{
+    color:transparent;-webkit-text-stroke:2px var(--red);
+  }
+  .hero p.lead{margin:24px 0 34px;font-size:1.15rem;color:var(--text-dim);max-width:33rem}
+  .hero-ctas{display:flex;gap:14px;flex-wrap:wrap}
+  .hero-meta{margin-top:30px;display:flex;gap:26px;flex-wrap:wrap;font-family:var(--font-mono);font-size:.8rem;color:var(--text-dim)}
+  .hero-meta span{display:flex;align-items:center;gap:7px}
+  .hero-meta svg{width:15px;height:15px;stroke:var(--green)}
+
+  /* ===== mockup phone ===== */
+  .stage{position:relative;display:flex;justify-content:center}
+  .phone{
+    width:290px;background:#03102b;border-radius:40px;padding:12px;
+    border:1px solid rgba(216,226,255,.18);
+    box-shadow:0 40px 90px rgba(0,0,0,.55),0 0 0 6px rgba(216,226,255,.04);
+    position:relative;
+  }
+  .phone-screen{background:linear-gradient(170deg,#0A1B3E 0%,var(--bg) 55%,var(--bg-deep) 100%);border-radius:30px;overflow:hidden;position:relative;padding-bottom:18px}
+  .phone-notch{width:84px;height:22px;background:#03102b;border-radius:0 0 14px 14px;margin:0 auto}
+  .app-bar{display:flex;align-items:center;justify-content:space-between;padding:12px 16px 4px;font-size:.72rem;font-family:var(--font-mono);color:var(--text-dim)}
+  .sync-pill{display:flex;align-items:center;gap:5px;font-size:.62rem;border:1px solid rgba(74,222,128,.4);color:var(--green);border-radius:999px;padding:3px 8px}
+  .sync-pill.off{border-color:rgba(251,146,60,.5);color:var(--amber)}
+  .sync-pill .d{width:6px;height:6px;border-radius:50%;background:currentColor}
+  .app-title{padding:8px 16px 2px;font-family:var(--font-display);font-size:1.02rem;color:#fff;text-transform:uppercase;letter-spacing:.02em}
+  .app-sub{padding:0 16px 10px;font-size:.68rem;color:var(--text-dim)}
+  .plate-field{
+    margin:6px 14px;background:#fff;border-radius:10px;padding:8px 12px 7px;
+    border:3px solid #12326e;position:relative;
+  }
+  .plate-band{position:absolute;top:0;left:0;right:0;height:9px;background:#12326e;border-radius:6px 6px 0 0;display:flex;align-items:center;justify-content:space-between;padding:0 7px}
+  .plate-band i{font-style:normal;font-size:5px;color:#fff;font-family:var(--font-mono);letter-spacing:.14em}
+  .plate-text{font-family:var(--font-mono);font-weight:700;font-size:1.5rem;color:#111;text-align:center;letter-spacing:.18em;padding-top:8px}
+  .ocr-chip{
+    margin:10px 14px 4px;display:flex;align-items:center;gap:8px;
+    background:rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.35);border-radius:10px;
+    padding:8px 12px;font-size:.66rem;color:var(--green);font-family:var(--font-mono);
+  }
+  .ocr-chip svg{width:14px;height:14px;stroke:var(--green);flex-shrink:0}
+  .mock-row{margin:8px 14px 0;background:rgba(216,226,255,.06);border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center}
+  .mock-row .l{font-size:.7rem}
+  .mock-row .l b{display:block;font-family:var(--font-mono);font-size:.8rem;color:#fff;letter-spacing:.06em}
+  .mock-row .l span{color:var(--text-dim);font-size:.62rem}
+  .mock-row .r{font-family:var(--font-mono);font-size:.72rem;color:var(--green)}
+  .mock-cta{margin:14px 14px 0;background:var(--red);color:#fff;text-align:center;border-radius:12px;padding:13px;font-weight:700;font-size:.85rem;box-shadow:0 8px 20px rgba(227,6,19,.4)}
+
+  /* ticket térmico flutuante */
+  .ticket{
+    position:absolute;right:-46px;top:44px;width:196px;
+    background:var(--paper);color:var(--paper-ink);
+    font-family:var(--font-mono);font-size:.62rem;line-height:1.5;
+    padding:16px 16px 22px;border-radius:3px;
+    box-shadow:0 26px 60px rgba(0,0,0,.5);
+    transform:rotate(4deg);
+    animation:sway 7s ease-in-out infinite;
+  }
+  @keyframes sway{0%,100%{transform:rotate(4deg) translateY(0)}50%{transform:rotate(2.6deg) translateY(-9px)}}
+  .ticket::before,.ticket::after{
+    content:"";position:absolute;left:0;right:0;height:8px;
+    background-image:radial-gradient(circle at 6px 0,transparent 5px,var(--paper) 5px);
+    background-size:12px 8px;background-repeat:repeat-x;
+  }
+  .ticket::before{top:-7px;transform:rotate(180deg)}
+  .ticket::after{bottom:-7px}
+  .ticket h4{font-size:.72rem;text-align:center;letter-spacing:.14em;margin-bottom:6px}
+  .ticket .tk-line{border-top:1px dashed #b9b0a0;margin:7px 0}
+  .ticket .tk-row{display:flex;justify-content:space-between}
+  .ticket .tk-big{font-size:1rem;font-weight:700;text-align:center;letter-spacing:.14em;margin:5px 0}
+  .ticket .tk-bar{height:26px;margin-top:9px;background:repeating-linear-gradient(90deg,#2A2620 0 2px,transparent 2px 4px,#2A2620 4px 5px,transparent 5px 9px)}
+  @media(max-width:1060px){.ticket{right:-14px}}
+  @media(max-width:520px){.ticket{display:none}}
+
+  /* ===== marquee offline ===== */
+  .marquee{
+    border-top:1px solid var(--line);border-bottom:1px solid var(--line);
+    padding:16px 0;overflow:hidden;white-space:nowrap;
+    background:var(--bg-deep);margin-top:64px;
+  }
+  .marquee-track{display:inline-block;animation:scroll 28s linear infinite;font-family:var(--font-display);text-transform:uppercase;font-size:1rem;letter-spacing:.1em;color:var(--text-dim)}
+  .marquee-track em{font-style:normal;color:var(--red);margin:0 26px}
+  @keyframes scroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+
+  /* ===== seções ===== */
+  section{padding:96px 0}
+  .kicker{font-family:var(--font-mono);font-size:.76rem;letter-spacing:.16em;text-transform:uppercase;color:var(--red);margin-bottom:14px;display:flex;align-items:center;gap:10px}
+  .kicker::before{content:"";width:26px;height:2px;background:var(--red)}
+  h2{font-family:var(--font-display);font-size:clamp(1.7rem,3.4vw,2.6rem);text-transform:uppercase;line-height:1.12;letter-spacing:-.01em;max-width:22ch}
+  .section-lead{margin-top:18px;color:var(--text-dim);max-width:40rem;font-size:1.05rem}
+
+  /* reveal */
+  .reveal{opacity:0;transform:translateY(26px);transition:opacity .6s ease,transform .6s ease}
+  .reveal.in{opacity:1;transform:none}
+
+  /* ===== offline feature ===== */
+  .offline-grid{display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:center;margin-top:56px}
+  @media(max-width:900px){.offline-grid{grid-template-columns:1fr}}
+  .flow{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:28px}
+  .flow-step{display:flex;gap:16px;padding:16px 4px;align-items:flex-start}
+  .flow-step + .flow-step{border-top:1px dashed var(--line)}
+  .flow-num{
+    font-family:var(--font-mono);font-weight:700;font-size:.8rem;color:var(--green);
+    border:1px solid rgba(74,222,128,.4);border-radius:8px;width:34px;height:34px;
+    display:grid;place-items:center;flex-shrink:0;
+  }
+  .flow-step h4{font-size:1rem;margin-bottom:4px;font-weight:700}
+  .flow-step p{font-size:.9rem;color:var(--text-dim)}
+  .offline-copy h3{font-family:var(--font-display);text-transform:uppercase;font-size:1.4rem;margin-bottom:16px}
+  .offline-copy p{color:var(--text-dim);margin-bottom:16px}
+  .offline-stat{
+    display:flex;gap:32px;margin-top:26px;flex-wrap:wrap;
+  }
+  .offline-stat div b{display:block;font-family:var(--font-mono);font-size:1.6rem;color:#fff}
+  .offline-stat div span{font-size:.8rem;color:var(--text-dim)}
+
+  /* ===== features grid ===== */
+  .feat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:56px}
+  @media(max-width:940px){.feat-grid{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:600px){.feat-grid{grid-template-columns:1fr}}
+  .feat{
+    background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+    padding:28px 24px;transition:border-color .25s,background .25s;position:relative;overflow:hidden;
+  }
+  .feat:hover{border-color:rgba(227,6,19,.5);background:var(--surface-hi)}
+  .feat-ic{
+    width:46px;height:46px;border-radius:12px;background:rgba(227,6,19,.12);
+    display:grid;place-items:center;margin-bottom:18px;
+  }
+  .feat-ic svg{width:22px;height:22px;stroke:var(--red);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  .feat h3{font-size:1.05rem;font-weight:700;margin-bottom:8px}
+  .feat p{font-size:.9rem;color:var(--text-dim)}
+  .feat .mono-tag{position:absolute;top:20px;right:20px;font-family:var(--font-mono);font-size:.6rem;color:var(--text-dim);letter-spacing:.1em}
+
+  /* ===== OCR spotlight ===== */
+  .ocr{background:var(--bg-deep);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+  .ocr-grid{display:grid;grid-template-columns:.95fr 1.05fr;gap:56px;align-items:center;margin-top:12px}
+  @media(max-width:900px){.ocr-grid{grid-template-columns:1fr;gap:48px}}
+  .ocr-demo{
+    background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+    padding:30px;position:relative;
+  }
+  .cam-frame{
+    border:2px dashed rgba(216,226,255,.3);border-radius:14px;height:170px;
+    position:relative;display:grid;place-items:center;overflow:hidden;
+    background:linear-gradient(160deg,#0A1B3E,#000D27);
+  }
+  .cam-frame::before{
+    content:"";position:absolute;left:8%;right:8%;height:2px;background:linear-gradient(90deg,transparent,var(--green),transparent);
+    animation:scan 2.6s ease-in-out infinite;
+  }
+  @keyframes scan{0%,100%{top:14%}50%{top:82%}}
+  .cam-plate{background:#fff;border:3px solid #12326e;border-radius:8px;padding:12px 20px 8px;position:relative}
+  .cam-plate .plate-band{height:8px}
+  .cam-plate b{font-family:var(--font-mono);font-size:1.5rem;color:#111;letter-spacing:.2em;display:block;padding-top:6px}
+  .ocr-out{margin-top:20px;font-family:var(--font-mono);font-size:.78rem;line-height:2}
+  .ocr-out .ok{color:var(--green)}
+  .ocr-out .dim{color:var(--text-dim)}
+  .ocr-list{list-style:none;margin-top:24px}
+  .ocr-list li{display:flex;gap:14px;padding:13px 0;border-bottom:1px dashed var(--line);font-size:.95rem;color:var(--text-dim)}
+  .ocr-list li svg{width:19px;height:19px;stroke:var(--green);flex-shrink:0;margin-top:3px}
+  .ocr-list li b{color:var(--text)}
+
+  /* ===== telas ===== */
+  .screens-row{display:flex;gap:34px;justify-content:center;flex-wrap:wrap;margin-top:60px}
+  .screen-card{text-align:center}
+  .screen-card .phone{width:250px;padding:10px}
+  .screen-card .phone-screen{border-radius:26px}
+  .screen-card figcaption{margin-top:18px;font-family:var(--font-mono);font-size:.76rem;letter-spacing:.1em;text-transform:uppercase;color:var(--text-dim)}
+  .mock-kpis{display:flex;gap:8px;margin:10px 14px 0}
+  .mock-kpi{flex:1;background:rgba(216,226,255,.06);border:1px solid var(--line);border-radius:10px;padding:9px 8px}
+  .mock-kpi span{font-size:.55rem;color:var(--text-dim);display:block}
+  .mock-kpi b{font-family:var(--font-mono);font-size:.82rem;color:#fff}
+  .mock-kpi b.g{color:var(--green)}
+  .mock-list-title{margin:14px 16px 4px;font-size:.68rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.08em}
+  .mock-btnrow{display:flex;gap:8px;margin:12px 14px 0}
+  .mock-btnrow div{flex:1;text-align:center;border-radius:10px;padding:10px 4px;font-size:.68rem;font-weight:700}
+  .mock-btnrow .in{background:var(--red);color:#fff}
+  .mock-btnrow .out{border:1px solid var(--line);color:var(--text)}
+
+  /* ===== specs ===== */
+  .specs{background:var(--bg-deep);border-top:1px solid var(--line)}
+  .spec-table{margin-top:48px;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+  .spec-row{display:grid;grid-template-columns:240px 1fr;border-bottom:1px solid var(--line);background:var(--surface)}
+  .spec-row:last-child{border-bottom:none}
+  .spec-row:nth-child(even){background:var(--bg)}
+  .spec-row dt{padding:18px 24px;font-family:var(--font-mono);font-size:.78rem;letter-spacing:.06em;text-transform:uppercase;color:var(--text-dim);border-right:1px solid var(--line)}
+  .spec-row dd{padding:18px 24px;font-size:.94rem}
+  .spec-row dd b{color:#fff}
+  @media(max-width:640px){.spec-row{grid-template-columns:1fr}.spec-row dt{border-right:none;padding-bottom:2px}}
+
+  /* ===== CTA final ===== */
+  .cta-final{position:relative;overflow:hidden}
+  .cta-box{
+    background:linear-gradient(140deg,var(--red) 0%,var(--red-dark) 100%);
+    border-radius:24px;padding:72px 48px;text-align:center;position:relative;overflow:hidden;
+  }
+  .cta-box::before{
+    content:"";position:absolute;inset:0;
+    background-image:radial-gradient(rgba(255,255,255,.14) 1px,transparent 1px);
+    background-size:22px 22px;
+  }
+  .cta-box h2{margin:0 auto;color:#fff;max-width:20ch}
+  .cta-box p{color:rgba(255,255,255,.85);margin:18px auto 34px;max-width:34rem;position:relative}
+  .cta-box .btn{position:relative}
+  .btn-white{background:#fff;color:var(--red-dark)}
+  .btn-white:hover,.btn-white:focus-visible{background:#f1e9e9}
+  @media(max-width:600px){.cta-box{padding:52px 22px}}
+
+  /* ===== apps Leve ===== */
+  .apps{padding:0 0 96px}
+  .apps-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:44px}
+  @media(max-width:760px){.apps-grid{grid-template-columns:1fr}}
+  .app-link{
+    display:flex;align-items:center;gap:18px;text-decoration:none;
+    background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+    padding:24px 26px;transition:border-color .25s,background .25s;
+  }
+  .app-link:hover,.app-link:focus-visible{border-color:rgba(227,6,19,.5);background:var(--surface-hi)}
+  .app-link .mark{
+    width:48px;height:48px;border-radius:13px;flex-shrink:0;
+    display:grid;place-items:center;font-family:var(--font-display);font-size:1.15rem;color:#fff;
+  }
+  .app-link .mark.navy{background:linear-gradient(140deg,#03306A,#021A3D)}
+  .app-link .mark.propark{background:#062D72}
+  .app-link b{display:block;font-family:var(--font-display);text-transform:uppercase;font-size:.98rem;letter-spacing:.02em}
+  .app-link p{font-size:.84rem;color:var(--text-dim);margin-top:2px}
+  .app-link .arrow{margin-left:auto;flex-shrink:0}
+  .app-link .arrow svg{width:20px;height:20px;stroke:var(--text-dim);stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round;transition:stroke .25s,transform .25s}
+  .app-link:hover .arrow svg{stroke:var(--red);transform:translateX(4px)}
+
+  footer{border-top:1px solid var(--line);padding:38px 0;background:var(--bg-deep)}
+  .foot{display:flex;justify-content:space-between;align-items:center;gap:18px;flex-wrap:wrap;font-size:.84rem;color:var(--text-dim)}
+  .foot .brand{font-size:.95rem}
+  .foot .brand-mark{width:26px;height:26px;font-size:.8rem;border-radius:6px}
+</style>
+</head>
+<body>
+
+<div class="hazard" aria-hidden="true"></div>
+
+<header class="nav">
+  <div class="container nav-inner">
+    <a class="brand" href="#topo" aria-label="Leve Pátio — início">
+      <span class="brand-mark" aria-hidden="true">P</span>
+      LEVE&nbsp;PÁTIO
+    </a>
+    <nav aria-label="Navegação principal">
+      <ul class="nav-links">
+        <li><a href="#valor">Impacto</a></li>
+        <li><a href="#offline">Offline-first</a></li>
+        <li><a href="#recursos">Recursos</a></li>
+        <li><a href="#ocr">OCR de placa</a></li>
+        <li><a href="#telas">Telas</a></li>
+        <li><a href="#specs">Ficha técnica</a></li>
+        <li><a href="#apps">Apps Leve</a></li>
+      </ul>
+    </nav>
+    <a class="btn btn-red" href="#demo">Agendar demonstração</a>
+  </div>
+</header>
+
+<main id="topo">
+
+  <!-- ============ HERO ============ -->
+  <section class="hero" aria-labelledby="hero-title">
+    <div class="container hero-grid">
+      <div>
+        <span class="tag"><span class="dot" aria-hidden="true"></span> Offline-first · Sincroniza sozinho</span>
+        <h1 id="hero-title">O pátio não para.<br><span class="stroke">Nem sem internet.</span></h1>
+        <p class="lead">
+          Entrada, saída, tarifa, caixa e impressão do ticket — tudo funciona no aparelho,
+          com ou sem sinal, e sincroniza sozinho com o Leve ERP. Nenhum ticket perdido,
+          nenhuma cobrança esquecida, nenhuma planilha redigitada.
+        </p>
+        <div class="hero-ctas">
+          <a class="btn btn-red" href="#valor">Ver o impacto no negócio</a>
+          <a class="btn btn-ghost" href="#offline">Como funciona o offline</a>
+        </div>
+        <div class="hero-meta" aria-label="Destaques">
+          <span><svg viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg> Desenvolvido pela TI da Leve</span>
+          <span><svg viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg> Integrado ao Leve ERP</span>
+          <span><svg viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg> Roda em Android comum</span>
+        </div>
+      </div>
+
+      <div class="stage">
+        <div class="phone" role="img" aria-label="Mockup do app Leve Pátio na tela de entrada de veículo, com placa lida por OCR">
+          <div class="phone-screen">
+            <div class="phone-notch"></div>
+            <div class="app-bar">
+              <span>09:42</span>
+              <span class="sync-pill"><span class="d"></span> SYNC OK</span>
+            </div>
+            <div class="app-title">Entrada de veículo</div>
+            <div class="app-sub">Operação Centro · Vaga rotativa</div>
+            <div class="plate-field">
+              <div class="plate-band"><i>BRASIL</i><i>BR</i></div>
+              <div class="plate-text">BRA2E19</div>
+            </div>
+            <div class="ocr-chip">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>
+              PLACA LIDA POR FOTO · CONFIRME
+            </div>
+            <div class="mock-row">
+              <div class="l"><b>TICKET #04182</b><span>Carro · Tabela horista</span></div>
+              <div class="r">R$ 8,00/h</div>
+            </div>
+            <div class="mock-cta">CONFIRMAR ENTRADA</div>
+          </div>
+        </div>
+        <div class="ticket" aria-hidden="true">
+          <h4>LEVE PÁTIO</h4>
+          <div class="tk-line"></div>
+          <div class="tk-row"><span>TICKET</span><span>#04182</span></div>
+          <div class="tk-row"><span>ENTRADA</span><span>09:42</span></div>
+          <div class="tk-row"><span>TIPO</span><span>CARRO</span></div>
+          <div class="tk-line"></div>
+          <div class="tk-big">BRA2E19</div>
+          <div class="tk-line"></div>
+          <div class="tk-row"><span>OPERAÇÃO</span><span>CENTRO</span></div>
+          <div class="tk-row"><span>OPERADOR</span><span>MARCOS</span></div>
+          <div class="tk-bar"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="marquee" aria-hidden="true">
+      <div class="marquee-track">
+        SEM SINAL, SEM PROBLEMA <em>///</em> A FILA ANDA <em>///</em> O CAIXA FECHA <em>///</em> O TICKET IMPRIME <em>///</em> A SYNC RESOLVE DEPOIS <em>///</em>
+        SEM SINAL, SEM PROBLEMA <em>///</em> A FILA ANDA <em>///</em> O CAIXA FECHA <em>///</em> O TICKET IMPRIME <em>///</em> A SYNC RESOLVE DEPOIS <em>///</em>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ IMPACTO NO NEGÓCIO ============ -->
+  <section id="valor" aria-labelledby="valor-title">
+    <div class="container">
+      <p class="kicker reveal">Para a diretoria</p>
+      <h2 id="valor-title" class="reveal">Onde o Leve Pátio vira resultado</h2>
+      <p class="section-lead reveal">
+        Não é um app de conveniência: é controle de receita, de caixa e de risco —
+        construído dentro de casa, sobre o ERP que a Leve já opera.
+      </p>
+
+      <div class="feat-grid">
+        <article class="feat reveal">
+          <span class="mono-tag">RECEITA</span>
+          <div class="feat-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z"/><path d="M9 12l2 2 4-4"/></svg></div>
+          <h3>Receita protegida</h3>
+          <p>Queda de internet ou de sistema não para a cobrança. A fila anda, o ticket sai e cada real entra registrado — mesmo no pico, mesmo sem sinal.</p>
+        </article>
+
+        <article class="feat reveal">
+          <span class="mono-tag">CAIXA</span>
+          <div class="feat-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg></div>
+          <h3>Caixa auditável de ponta a ponta</h3>
+          <p>Abertura, sangria, suprimento e fechamento com operador, horário e forma de pagamento — conferíveis no ERP. Furo de caixa deixa de ser conversa e vira dado.</p>
+        </article>
+
+        <article class="feat reveal">
+          <span class="mono-tag">RISCO</span>
+          <div class="feat-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg></div>
+          <h3>Menos passivo, mais respaldo</h3>
+          <p>Foto do veículo na entrada, guardada no ERP. Reclamação de avaria na saída se resolve com evidência — não com desconto.</p>
+        </article>
+
+        <article class="feat reveal">
+          <span class="mono-tag">GESTÃO</span>
+          <div class="feat-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 20h18M6 16v-5M11 16V8M16 16v-8M21 16V5"/></svg></div>
+          <h3>Decisão com dado real</h3>
+          <p>Movimento, tickets e caixa de cada operação chegam ao ERP sem redigitação. A dashboard mostra o pátio como ele é — não como foi anotado.</p>
+        </article>
+
+        <article class="feat reveal">
+          <span class="mono-tag">CUSTO</span>
+          <div class="feat-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/></svg></div>
+          <h3>Hardware barato, licença zero</h3>
+          <p>Roda em celular Android comum com impressora térmica portátil — sem POS proprietário, sem mensalidade por dispositivo, sem fornecedor externo de software.</p>
+        </article>
+
+        <article class="feat reveal">
+          <span class="mono-tag">ESCALA</span>
+          <div class="feat-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M12 20V4M20 20v-7"/><path d="M2 20h20"/></svg></div>
+          <h3>Nova operação em horas, não semanas</h3>
+          <p>Tarifas, clientes e configuração ficam centralizados no ERP. Habilitar um novo pátio é cadastrar a operação e entregar um aparelho logado.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ OFFLINE ============ -->
+  <section id="offline" aria-labelledby="offline-title" style="padding-top:0">
+    <div class="container">
+      <p class="kicker reveal">Arquitetura offline-first</p>
+      <h2 id="offline-title" class="reveal">Feito para guarita, cancela e fim de linha 4G</h2>
+      <p class="section-lead reveal">
+        Estacionamento de verdade tem ponto cego de sinal, chuva e horário de pico. Por isso o Leve Pátio
+        grava tudo primeiro no banco local do aparelho — e trata a internet como um bônus, não como requisito.
+      </p>
+
+      <div class="offline-grid">
+        <div class="flow reveal" role="list" aria-label="Fluxo de sincronização">
+          <div class="flow-step" role="listitem">
+            <span class="flow-num" aria-hidden="true">01</span>
+            <div>
+              <h4>Registra no aparelho</h4>
+              <p>Cada entrada, saída e movimento de caixa é gravado na hora, em banco SQLite local. Zero espera de rede.</p>
+            </div>
+          </div>
+          <div class="flow-step" role="listitem">
+            <span class="flow-num" aria-hidden="true">02</span>
+            <div>
+              <h4>Entra na fila de sincronização</h4>
+              <p>Tudo que aconteceu offline fica em uma fila persistente, com registro de cada tentativa de envio.</p>
+            </div>
+          </div>
+          <div class="flow-step" role="listitem">
+            <span class="flow-num" aria-hidden="true">03</span>
+            <div>
+              <h4>Sincroniza quando dá</h4>
+              <p>Um worker reenvia a fila ao Leve ERP a cada ~5 minutos ou sob demanda, com até 10 novas tentativas por item.</p>
+            </div>
+          </div>
+          <div class="flow-step" role="listitem">
+            <span class="flow-num" aria-hidden="true">04</span>
+            <div>
+              <h4>Aparece na dashboard</h4>
+              <p>Tickets, fotos e caixa chegam ao ERP e ficam visíveis para a administração — sem redigitação, sem planilha.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="offline-copy reveal">
+          <h3>O status de sync fica sempre à vista</h3>
+          <p>
+            O operador vê no topo da tela se está <b style="color:var(--green)">online</b>,
+            com <b style="color:var(--amber)">pendências na fila</b> ou
+            <b style="color:var(--red)">sem conexão</b> — e segue trabalhando do mesmo jeito
+            nos três casos.
+          </p>
+          <p>
+            A carga inicial da operação (tarifas, clientes, configuração) desce uma vez no login.
+            Do resto do turno em diante, a rede só serve para colocar os dados no ERP.
+          </p>
+          <div class="offline-stat">
+            <div><b>100%</b><span>das operações funcionam offline</span></div>
+            <div><b>~5 min</b><span>ciclo automático de sync</span></div>
+            <div><b>10×</b><span>retentativas por item da fila</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ RECURSOS ============ -->
+  <section id="recursos" aria-labelledby="recursos-title" style="padding-top:0">
+    <div class="container">
+      <p class="kicker reveal">Recursos</p>
+      <h2 id="recursos-title" class="reveal">Tudo que a operação usa, em um app só</h2>
+
+      <div class="feat-grid">
+        <article class="feat reveal">
+          <span class="mono-tag">ENTRADA/SAÍDA</span>
+          <div class="feat-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 17h14M7 17l1.5-5h7L17 17M8.5 12l1-3h5l1 3"/><circle cx="8" cy="17" r="1.6"/><circle cx="16" cy="17" r="1.6"/></svg></div>
+          <h3>Fluxo de pátio completo</h3>
+          <p>Entrada com ticket, consulta de veículos no pátio e saída com cálculo automático — por placa, número do ticket ou QR code.</p>
+        </article>
+
+        <article class="feat reveal">
+          <span class="mono-tag">ML KIT</span>
+          <div class="feat-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2"/><rect x="7" y="9" width="10" height="6" rx="1"/></svg></div>
+          <h3>OCR de placa por foto</h3>
+          <p>Fotografou, leu. A placa é reconhecida no próprio aparelho — inclusive offline — e pré-preenchida para o operador confirmar.</p>
+        </article>
+
+        <article class="feat reveal">
+          <span class="mono-tag">EVIDÊNCIA</span>
+          <div class="feat-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg></div>
+          <h3>Foto do veículo na entrada</h3>
+          <p>Registro visual do estado do veículo, guardado no aparelho e enviado ao ERP. Menos discussão na saída, mais respaldo para a operação.</p>
+        </article>
+
+        <article class="feat reveal">
+          <span class="mono-tag">FINANCEIRO</span>
+          <div class="feat-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M6 12h.01M18 12h.01"/></svg></div>
+          <h3>Caixa de ponta a ponta</h3>
+          <p>Abertura, sangria, suprimento e fechamento de caixa com conferência por forma de pagamento — tudo rastreado no ERP.</p>
+        </article>
+
+        <article class="feat reveal">
+          <span class="mono-tag">ESC/POS</span>
+          <div class="feat-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9V3h12v6M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="7"/></svg></div>
+          <h3>Impressão térmica Bluetooth</h3>
+          <p>Ticket de entrada e comprovante impressos direto em impressora térmica portátil, sem fio e sem depender de rede.</p>
+        </article>
+
+        <article class="feat reveal">
+          <span class="mono-tag">TARIFAS</span>
+          <div class="feat-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
+          <h3>Tarifa calculada na hora</h3>
+          <p>Tabelas de preço por tipo de veículo e vigência vêm do ERP. Na saída, o valor sai certo — sem conta de cabeça, sem caderninho.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ OCR SPOTLIGHT ============ -->
+  <section id="ocr" class="ocr" aria-labelledby="ocr-title">
+    <div class="container">
+      <p class="kicker reveal">Leitura de placa</p>
+      <h2 id="ocr-title" class="reveal">A câmera digita a placa. O operador só confirma.</h2>
+
+      <div class="ocr-grid">
+        <div class="ocr-demo reveal" aria-label="Demonstração da leitura de placa">
+          <div class="cam-frame">
+            <div class="cam-plate">
+              <div class="plate-band"><i>BRASIL</i><i>BR</i></div>
+              <b>RTX4B22</b>
+            </div>
+          </div>
+          <div class="ocr-out" aria-hidden="true">
+            <div class="dim">&gt; capturando frame…</div>
+            <div class="dim">&gt; reconhecendo texto (on-device)…</div>
+            <div class="dim">&gt; validando formato Mercosul LLLNLNN…</div>
+            <div class="ok">&gt; PLACA: RTX4B22 ✓ pré-preenchida</div>
+          </div>
+        </div>
+
+        <div class="reveal">
+          <ul class="ocr-list">
+            <li>
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>
+              <span><b>Processamento 100% no aparelho.</b> Nada sobe para nuvem de terceiros e a leitura funciona mesmo sem internet — coerente com o resto do app.</span>
+            </li>
+            <li>
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>
+              <span><b>Entende placa Mercosul e o padrão antigo.</b> A leitura é validada contra o formato brasileiro, posição por posição, corrigindo confusões clássicas de OCR (O↔0, I↔1, B↔8).</span>
+            </li>
+            <li>
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>
+              <span><b>Conservador de propósito.</b> Se a leitura não é confiável, o app não chuta: prefere deixar o operador digitar a pré-preencher uma placa errada.</span>
+            </li>
+            <li>
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>
+              <span><b>Também na saída.</b> Fotografou a placa na cancela e o app localiza o ticket aberto correspondente — direto para a cobrança.</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ TELAS ============ -->
+  <section id="telas" aria-labelledby="telas-title">
+    <div class="container">
+      <p class="kicker reveal">O app por dentro</p>
+      <h2 id="telas-title" class="reveal">Direto ao ponto, do jeito que a guarita precisa</h2>
+      <p class="section-lead reveal">Telas escuras de alto contraste, botões grandes e o essencial em primeiro plano — pensadas para uso em pé, no sol e com pressa.</p>
+
+      <div class="screens-row">
+        <figure class="screen-card reveal">
+          <div class="phone" role="img" aria-label="Tela inicial da operação com indicadores do dia e ações de entrada e saída">
+            <div class="phone-screen">
+              <div class="phone-notch"></div>
+              <div class="app-bar"><span>09:41</span><span class="sync-pill"><span class="d"></span> SYNC OK</span></div>
+              <div class="app-title">Operação Centro</div>
+              <div class="app-sub">Turno da manhã · Caixa aberto</div>
+              <div class="mock-kpis">
+                <div class="mock-kpi"><span>No pátio</span><b>47</b></div>
+                <div class="mock-kpi"><span>Entradas hoje</span><b>112</b></div>
+                <div class="mock-kpi"><span>Caixa</span><b class="g">R$ 1.284</b></div>
+              </div>
+              <div class="mock-btnrow">
+                <div class="in">ENTRADA</div>
+                <div class="out">SAÍDA</div>
+              </div>
+              <div class="mock-list-title">Últimos movimentos</div>
+              <div class="mock-row"><div class="l"><b>QRA1C33</b><span>Saída · 09:37</span></div><div class="r">R$ 16,00</div></div>
+              <div class="mock-row"><div class="l"><b>BRA2E19</b><span>Entrada · 09:42</span></div><div class="r" style="color:var(--text-dim)">aberto</div></div>
+            </div>
+          </div>
+          <figcaption>Home da operação</figcaption>
+        </figure>
+
+        <figure class="screen-card reveal">
+          <div class="phone" role="img" aria-label="Tela do pátio com a lista de veículos estacionados">
+            <div class="phone-screen">
+              <div class="phone-notch"></div>
+              <div class="app-bar"><span>14:05</span><span class="sync-pill off"><span class="d"></span> 3 NA FILA</span></div>
+              <div class="app-title">Pátio</div>
+              <div class="app-sub">47 veículos agora</div>
+              <div class="mock-row"><div class="l"><b>NEV8D07</b><span>Entrada 13:58 · 7 min</span></div><div class="r" style="color:var(--text-dim)">carro</div></div>
+              <div class="mock-row"><div class="l"><b>KYP2A61</b><span>Entrada 13:21 · 44 min</span></div><div class="r" style="color:var(--text-dim)">moto</div></div>
+              <div class="mock-row"><div class="l"><b>BRA2E19</b><span>Entrada 09:42 · 4h 23min</span></div><div class="r" style="color:var(--text-dim)">carro</div></div>
+              <div class="mock-row"><div class="l"><b>HTQ5F90</b><span>Entrada 08:15 · 5h 50min</span></div><div class="r" style="color:var(--text-dim)">carro</div></div>
+              <div class="mock-cta" style="background:rgba(216,226,255,.08);box-shadow:none;border:1px solid var(--line)">BUSCAR PLACA OU TICKET</div>
+            </div>
+          </div>
+          <figcaption>Veículos no pátio</figcaption>
+        </figure>
+
+        <figure class="screen-card reveal">
+          <div class="phone" role="img" aria-label="Tela de fechamento de caixa com totais por forma de pagamento">
+            <div class="phone-screen">
+              <div class="phone-notch"></div>
+              <div class="app-bar"><span>18:02</span><span class="sync-pill"><span class="d"></span> SYNC OK</span></div>
+              <div class="app-title">Fechamento</div>
+              <div class="app-sub">Caixa do turno · Marcos</div>
+              <div class="mock-row"><div class="l"><b>DINHEIRO</b><span>38 recebimentos</span></div><div class="r">R$ 612,00</div></div>
+              <div class="mock-row"><div class="l"><b>PIX</b><span>41 recebimentos</span></div><div class="r">R$ 704,00</div></div>
+              <div class="mock-row"><div class="l"><b>CARTÃO</b><span>19 recebimentos</span></div><div class="r">R$ 388,00</div></div>
+              <div class="mock-kpis">
+                <div class="mock-kpi"><span>Sangrias</span><b>R$ 400</b></div>
+                <div class="mock-kpi"><span>Total do turno</span><b class="g">R$ 1.704</b></div>
+              </div>
+              <div class="mock-cta">FECHAR CAIXA E IMPRIMIR</div>
+            </div>
+          </div>
+          <figcaption>Caixa e fechamento</figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SPECS ============ -->
+  <section id="specs" class="specs" aria-labelledby="specs-title">
+    <div class="container">
+      <p class="kicker reveal">Ficha técnica</p>
+      <h2 id="specs-title" class="reveal">Para quem vai avaliar por dentro</h2>
+
+      <dl class="spec-table reveal">
+        <div class="spec-row"><dt>Plataforma</dt><dd><b>Flutter (Android)</b> — distribuição por APK direto nos aparelhos da operação</dd></div>
+        <div class="spec-row"><dt>Persistência</dt><dd><b>Drift / SQLite</b> local, fonte primária de verdade no aparelho; fila de sync persistente com log de tentativas</dd></div>
+        <div class="spec-row"><dt>Sincronização</dt><dd>Worker automático (~5 min) + sob demanda; bootstrap inicial de operação, tarifas e clientes; até 10 retentativas por item</dd></div>
+        <div class="spec-row"><dt>Integração</dt><dd><b>Leve ERP</b> via HTTP (namespace dedicado de pátio); tickets, fotos e caixa visíveis na dashboard administrativa</dd></div>
+        <div class="spec-row"><dt>Autenticação</dt><dd>Bearer token por dispositivo com refresh automático, armazenado em secure storage do Android</dd></div>
+        <div class="spec-row"><dt>OCR</dt><dd>Google ML Kit <b>on-device</b> (sem nuvem), com validação posicional dos formatos Mercosul e antigo</dd></div>
+        <div class="spec-row"><dt>Impressão</dt><dd>Térmica Bluetooth <b>ESC/POS</b> (58mm), com descoberta de impressora e layout de cupom próprios</dd></div>
+        <div class="spec-row"><dt>Pagamento em POS</dt><dd>Integração <b>Stone</b> opcional por build — cartão e PIX roteados para a maquininha nos aparelhos POS</dd></div>
+      </dl>
+    </div>
+  </section>
+
+  <!-- ============ CTA FINAL ============ -->
+  <section id="demo" class="cta-final" aria-labelledby="cta-title">
+    <div class="container">
+      <div class="cta-box reveal">
+        <h2 id="cta-title">Veja o Leve Pátio rodando, ao vivo</h2>
+        <p>
+          O app já opera em produção, integrado ao Leve ERP. A TI faz uma demonstração
+          completa — entrada com OCR, cobrança, fechamento de caixa e o reflexo na dashboard —
+          e apresenta o plano de expansão para as demais operações.
+        </p>
+        <a class="btn btn-white" href="mailto:ti@leve.mobi?subject=Leve%20P%C3%A1tio%20%E2%80%94%20agendar%20demonstra%C3%A7%C3%A3o">
+          Agendar demonstração · ti@leve.mobi
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ OUTROS APPS LEVE ============ -->
+  <section class="apps" id="apps" aria-labelledby="apps-title">
+    <div class="container">
+      <p class="kicker reveal">Ecossistema Leve</p>
+      <h2 id="apps-title" class="reveal">Um app para cada ponta da operação</h2>
+      <div class="apps-grid">
+        <a class="app-link reveal" href="/apps/mobile/">
+          <span class="mark navy" aria-hidden="true">L</span>
+          <span>
+            <b>Leve Mobile</b>
+            <p>O app dos colaboradores: chamados, mural de avisos e calendário corporativo.</p>
+          </span>
+          <span class="arrow" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12h14M13 5l7 7-7 7"/></svg></span>
+        </a>
+        <a class="app-link reveal" href="/apps/clientes/">
+          <span class="mark propark" aria-hidden="true">L</span>
+          <span>
+            <b>Leve Clientes</b>
+            <p>O app dos contratantes: faturamento diário, comparativos e relatório em PDF.</p>
+          </span>
+          <span class="arrow" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12h14M13 5l7 7-7 7"/></svg></span>
+        </a>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="container foot">
+    <a class="brand" href="#topo"><span class="brand-mark" aria-hidden="true">P</span> LEVE&nbsp;PÁTIO</a>
+    <span>Leve Mobilidade · App interno de operação de pátio · Integrado ao Leve ERP</span>
+  </div>
+</footer>
+
+<script>
+  const io = new IntersectionObserver((entries)=>{
+    for(const e of entries){
+      if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}
+    }
+  },{threshold:.15});
+  document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+</script>
+</body>
+</html>
